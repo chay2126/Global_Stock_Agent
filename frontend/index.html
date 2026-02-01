@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Stock Analyzer - AI-Powered Stock Analysis</title>
+    <meta name="description" content="Analyze stocks from any exchange worldwide. Get instant BUY/SELL/HOLD recommendations powered by AI.">
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="/static/css/style.css">
+    
+    <!-- Chart.js for interactive charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌍</text></svg>">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <h1 class="logo">🌍 Global Stock Analyzer</h1>
+            <p class="tagline">Analyze stocks from any exchange worldwide - Get instant BUY/SELL/HOLD recommendations</p>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+        <div class="container">
+            
+            <!-- Search Section -->
+            <section class="search-section">
+                <div class="search-card">
+                    <h2>🔍 Search & Analyze Stock</h2>
+                    <div class="search-form">
+                        <input 
+                            type="text" 
+                            id="stockInput" 
+                            class="search-input" 
+                            placeholder="Enter company name or ticker (e.g., Apple, TCS, MSFT, Reliance)"
+                            autocomplete="off"
+                        >
+                        <button id="analyzeBtn" class="btn btn-primary">
+                            <span class="btn-text">Analyze</span>
+                            <span class="btn-loader" style="display: none;">
+                                <span class="spinner"></span> Analyzing...
+                            </span>
+                        </button>
+                    </div>
+                    <p class="search-hint">💡 Try: TCS, Apple, Toyota, Reliance, Microsoft, Samsung</p>
+                </div>
+            </section>
+
+            <!-- Trending Stocks Section -->
+            <section class="trending-section" id="trendingSection">
+                <h2>🔥 Trending Stocks (Good to Buy)</h2>
+                <div id="trendingStocks" class="trending-grid">
+                    <div class="trending-loader">
+                        <span class="spinner"></span> Loading trending stocks...
+                    </div>
+                </div>
+            </section>
+
+            <!-- Results Section -->
+            <section class="results-section" id="resultsSection" style="display: none;">
+                
+                <!-- Decision Banner -->
+                <div id="decisionBanner" class="decision-banner"></div>
+
+                <!-- Main Grid: Metrics + Chart -->
+                <div class="analysis-grid">
+                    
+                    <!-- Left Column: Metrics -->
+                    <div class="metrics-card">
+                        <h3>📊 Key Metrics</h3>
+                        <div id="metricsContent">
+                            <div class="metric-loader">
+                                <span class="spinner"></span> Loading metrics...
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Chart -->
+                    <div class="chart-card">
+                        <h3>📈 Price Chart</h3>
+                        <div class="chart-controls">
+                            <button class="period-btn" data-period="1mo">1M</button>
+                            <button class="period-btn active" data-period="6mo">6M</button>
+                            <button class="period-btn" data-period="1y">1Y</button>
+                            <button class="period-btn" data-period="5y">5Y</button>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="priceChart"></canvas>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Explanation Section -->
+                <div class="explanation-card">
+                    <h3>📝 Analysis & Recommendation</h3>
+                    <div id="explanationContent" class="explanation-content"></div>
+                </div>
+
+                <!-- News Section -->
+                <div class="news-card">
+                    <h3>📰 Latest News Headlines</h3>
+                    <div id="newsContent">
+                        <div class="news-loader">
+                            <span class="spinner"></span> Loading news...
+                        </div>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- Multi-Stock Comparison Section -->
+            <section class="comparison-section">
+                <h2>🔄 Compare Multiple Stocks</h2>
+                <div class="comparison-card">
+                    <div class="comparison-inputs">
+                        <input type="text" id="compareInput1" class="compare-input" placeholder="Stock 1 (e.g., TCS)">
+                        <input type="text" id="compareInput2" class="compare-input" placeholder="Stock 2 (e.g., Infosys)">
+                        <input type="text" id="compareInput3" class="compare-input" placeholder="Stock 3 (optional)">
+                        <input type="text" id="compareInput4" class="compare-input" placeholder="Stock 4 (optional)">
+                    </div>
+                    <button id="compareBtn" class="btn btn-secondary">
+                        <span class="btn-text">Compare Stocks</span>
+                        <span class="btn-loader" style="display: none;">
+                            <span class="spinner"></span> Comparing...
+                        </span>
+                    </button>
+                    <div id="comparisonResults" style="display: none;"></div>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>💡 <strong>Disclaimer:</strong> This is a research tool for educational purposes. Always do your own analysis and consult financial advisors before making investment decisions.</p>
+            <p>📊 Data provided by Yahoo Finance | Analysis powered by AI</p>
+            <p>🌍 Supporting 70,000+ stocks from 60+ global exchanges</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

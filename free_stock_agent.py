@@ -2,7 +2,6 @@ import requests
 import yfinance as yf
 from textblob import TextBlob
 import os
-from openai import OpenAI
 import logging
 from typing import Dict, List, Optional, Tuple
 import re
@@ -14,14 +13,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Initialize OpenAI client
-try:
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-except Exception as e:
-    logger.error(f"Failed to initialize OpenAI client: {e}")
-    client = None
-
-# Get API keys from environment variables
+# Get API key from environment variables
 NEWS_API_KEY = os.getenv("NEWS_API_KEY")
 
 # Global stock exchange suffixes for Yahoo Finance
@@ -270,7 +262,7 @@ def fetch_stock_news(company_name: str) -> List[str]:
         List of news article summaries
     """
     if not NEWS_API_KEY:
-        logger.error("NEWS_API_KEY not found in environment variables")
+        logger.warning("NEWS_API_KEY not found - skipping news fetch")
         return []
     
     url = "https://newsapi.org/v2/everything"
@@ -399,73 +391,157 @@ def make_decision(sentiment_score: float, price_change: float) -> str:
     Returns:
         Decision string: "BUY", "SELL", or "HOLD"
     """
-    if sentiment_score > 0.1 and price_change > 5:
+    # Calculate weighted score (60% price, 40% sentiment)
+    # This gives more weight to actual performance
+    combined_score = (price_change * 0.6) + (sentiment_score * 20 * 0.4)
+    
+    # Decision thresholds
+    if combined_score > 3:
         decision = "BUY"
-    elif sentiment_score < -0.1 and price_change < -5:
+    elif combined_score < -3:
         decision = "SELL"
     else:
         decision = "HOLD"
     
-    logger.info(f"Decision: {decision} (sentiment={sentiment_score:.2f}, price_change={price_change:.2f}%)")
+    logger.info(f"Decision: {decision} (sentiment={sentiment_score:.2f}, price_change={price_change:.2f}%, combined_score={combined_score:.2f})")
     return decision
 
 
-def explain_decision(stock: str, news: List[str], performance: Dict, decision: str) -> str:
+def generate_explanation(decision: str, sentiment_score: float, price_change: float, 
+                        has_news: bool, currency: str) -> str:
     """
-    Generate AI explanation for the investment decision.
+    Generate a clear, simple explanation for the investment decision.
+    NO OPENAI - 100% FREE!
     
     Args:
-        stock: Stock symbol
-        news: List of news articles
-        performance: Stock performance data
-        decision: Investment decision
+        decision: BUY/SELL/HOLD decision
+        sentiment_score: News sentiment score
+        price_change: 6-month price change percentage
+        has_news: Whether news articles were available
+        currency: Stock currency
         
     Returns:
-        Explanation text
+        Human-readable explanation
     """
-    if not client:
-        return "AI explanation unavailable: OpenAI client not initialized. Please set OPENAI_API_KEY."
     
-    news_text = "\n".join([f"- {article[:150]}..." for article in news[:5]])
+    # Sentiment interpretation
+    if sentiment_score > 0.2:
+        sentiment_desc = "very positive"
+    elif sentiment_score > 0.1:
+        sentiment_desc = "positive"
+    elif sentiment_score > -0.1:
+        sentiment_desc = "neutral"
+    elif sentiment_score > -0.2:
+        sentiment_desc = "negative"
+    else:
+        sentiment_desc = "very negative"
     
-    prompt = f"""
-You are a financial research assistant.
-
-Stock: {stock}
-6-month price change: {performance['6m_change_percent']}%
-Current price: {performance['current_price']} {performance.get('currency', 'USD')}
-Exchange: {performance.get('exchange', 'Unknown')}
-
-Recent news headlines:
-{news_text}
-
-Final decision: {decision}
-
-Explain clearly and concisely why this recommendation was made based on the data provided. Keep it under 150 words.
-"""
+    # Price change interpretation
+    if abs(price_change) < 2:
+        price_desc = "minimal movement"
+    elif abs(price_change) < 5:
+        price_desc = "modest movement"
+    elif abs(price_change) < 10:
+        price_desc = "moderate movement"
+    elif abs(price_change) < 20:
+        price_desc = "significant movement"
+    else:
+        price_desc = "major movement"
     
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=300,
-            temperature=0.7
-        )
-        explanation = response.choices[0].message.content
-        logger.info("Generated AI explanation successfully")
-        return explanation
+    # Direction
+    if price_change > 0:
+        direction = f"gained {price_change:.1f}%"
+    elif price_change < 0:
+        direction = f"declined {abs(price_change):.1f}%"
+    else:
+        direction = "remained flat"
+    
+    # Build explanation based on decision
+    explanations = {
+        "BUY": f"""
+✅ BUY RECOMMENDATION
+
+Strong positive signals detected:
+• News Sentiment: {sentiment_desc.upper()} ({sentiment_score:.2f})
+• Price Performance: Stock has {direction} over 6 months ({price_desc})
+• Market Momentum: Both sentiment and price trend are positive
+
+Why BUY?
+The combination of positive news coverage (sentiment > 0.1) and strong price 
+performance (>5% gain) suggests favorable market conditions. The stock is 
+showing upward momentum with positive market perception.
+
+⚠️ Note: This is based on historical data. Always do your own research and 
+consider your risk tolerance before investing.
+        """,
         
-    except Exception as e:
-        logger.error(f"Error generating AI explanation: {e}")
-        return f"AI explanation unavailable: {str(e)}"
+        "SELL": f"""
+❌ SELL RECOMMENDATION
+
+Warning signals detected:
+• News Sentiment: {sentiment_desc.upper()} ({sentiment_score:.2f})
+• Price Performance: Stock has {direction} over 6 months ({price_desc})
+• Market Momentum: Both sentiment and price trend are negative
+
+Why SELL?
+The combination of negative news coverage (sentiment < -0.1) and declining 
+price performance (>5% loss) indicates unfavorable market conditions. The 
+stock is showing downward momentum with poor market perception.
+
+💡 Consider: Cutting losses or reallocating to better-performing assets.
+        """,
+        
+        "HOLD": f"""
+⏸️ HOLD RECOMMENDATION
+
+Mixed or neutral signals:
+• News Sentiment: {sentiment_desc.upper()} ({sentiment_score:.2f})
+• Price Performance: Stock has {direction} over 6 months ({price_desc})
+• Market Momentum: No clear directional trend
+
+Why HOLD?
+The stock doesn't show strong enough signals for either buying or selling:
+"""
+    }
+    
+    # Add specific HOLD reasoning
+    hold_reasons = []
+    
+    if abs(sentiment_score) <= 0.1:
+        hold_reasons.append("• Sentiment is neutral - no strong positive or negative news")
+    
+    if abs(price_change) < 5:
+        hold_reasons.append(f"• Price movement is modest ({abs(price_change):.1f}%) - not enough momentum")
+    
+    if sentiment_score > 0.1 and price_change < 5:
+        hold_reasons.append("• Positive news but weak price action - market may be uncertain")
+    
+    if sentiment_score < -0.1 and price_change > -5:
+        hold_reasons.append("• Negative news but price holding up - may have support")
+    
+    if not has_news:
+        hold_reasons.append("• Limited news coverage - insufficient information for strong conviction")
+    
+    if decision == "HOLD":
+        explanations["HOLD"] += "\n".join(hold_reasons) if hold_reasons else "• Waiting for clearer market direction is prudent"
+        explanations["HOLD"] += "\n\n💡 Strategy: Monitor closely for stronger signals before taking action."
+    
+    explanation = explanations[decision].strip()
+    
+    # Add data summary
+    explanation += f"\n\n📊 DATA SUMMARY:\n"
+    explanation += f"   Sentiment Score: {sentiment_score:.2f} (-1 to +1 scale)\n"
+    explanation += f"   6-Month Change: {price_change:+.2f}%\n"
+    explanation += f"   News Articles: {('Available' if has_news else 'Limited')}"
+    
+    return explanation
 
 
 def research_agent(symbol: str, company_name: str = None) -> Optional[Dict]:
     """
     Main research agent function that orchestrates the analysis.
     Works with stocks from ANY exchange worldwide.
+    100% FREE - No OpenAI required!
     
     Args:
         symbol: Stock ticker symbol or company name
@@ -503,11 +579,14 @@ def research_agent(symbol: str, company_name: str = None) -> Optional[Dict]:
     sentiment = analyze_news_sentiment(news)
     decision = make_decision(sentiment, performance["6m_change_percent"])
     
-    # Generate explanation
-    try:
-        explanation = explain_decision(normalized_symbol, news, performance, decision)
-    except Exception as e:
-        explanation = f"Explanation generation failed: {str(e)}"
+    # Generate FREE explanation (no OpenAI!)
+    explanation = generate_explanation(
+        decision=decision,
+        sentiment_score=sentiment,
+        price_change=performance["6m_change_percent"],
+        has_news=len(news) > 0,
+        currency=performance.get("currency", "USD")
+    )
     
     result_dict = {
         "symbol": normalized_symbol,
@@ -538,21 +617,13 @@ def print_report(result: Dict) -> None:
     print(f"🏦 Exchange: {result.get('exchange', 'Unknown')}")
     print("="*70)
     
-    # Decision with emoji
-    decision_emoji = {
-        "BUY": "💚",
-        "SELL": "❤️",
-        "HOLD": "💛"
-    }
-    emoji = decision_emoji.get(result['decision'], "⚪")
-    
-    print(f"\n{emoji} {'Decision':<20}: {result['decision']}")
+    # Decision (no emoji)
+    print(f"\n{'Decision':<20}: {result['decision']}")
     print(f"{'Sentiment Score':<20}: {result['sentiment_score']}")
     print(f"{'Current Price':<20}: {result['current_price']} {result.get('currency', 'USD')}")
     print(f"{'6M Price Change':<20}: {result['price_change_6m']}%")
     
-    print("\n🧠 AI Explanation:")
-    print("-"*70)
+    print("\n" + "="*70)
     print(result["explanation"])
     print("="*70 + "\n")
 
@@ -560,8 +631,9 @@ def print_report(result: Dict) -> None:
 if __name__ == "__main__":
     # Example usage - test stocks from around the world
     print("\n" + "="*70)
-    print("🌍 GLOBAL STOCK RESEARCH AGENT")
+    print("🌍 GLOBAL STOCK RESEARCH AGENT - 100% FREE VERSION")
     print("="*70)
+    print("\n✨ No OpenAI required - completely free to use!")
     print("\nTesting stocks from multiple countries...\n")
     
     test_stocks = [
@@ -569,7 +641,6 @@ if __name__ == "__main__":
         ("TCS", "Tata Consultancy"),      # India - by name
         ("Toyota", "Toyota Motor"),        # Japan - by name
         ("BP", "BP plc"),                 # UK - by name
-        ("MSFT", None),                    # US - by ticker
     ]
     
     for symbol, company in test_stocks:

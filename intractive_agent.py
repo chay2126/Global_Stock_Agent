@@ -10,7 +10,7 @@ import os
 # Load environment variables
 load_dotenv()
 
-from global_stock_agent import research_agent, print_report
+from free_stock_agent import research_agent, print_report
 import sys
 
 
