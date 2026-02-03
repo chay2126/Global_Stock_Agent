@@ -7,7 +7,7 @@
     <meta name="description" content="Analyze stocks from any exchange worldwide. Get instant BUY/SELL/HOLD recommendations powered by AI.">
     
     <!-- CSS -->
-    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/style-pro.css">
     
     <!-- Chart.js for interactive charts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
@@ -19,8 +19,12 @@
     <!-- Header -->
     <header class="header">
         <div class="container">
-            <h1 class="logo">🌍 Global Stock Analyzer</h1>
-            <p class="tagline">Analyze stocks from any exchange worldwide - Get instant BUY/SELL/HOLD recommendations</p>
+            <div class="header-content">
+                <div>
+                    <h1 class="logo">🌍 Global Stock Analyzer</h1>
+                    <p class="tagline">Professional Stock Analysis Platform - Real-time Market Intelligence</p>
+                </div>
+            </div>
         </div>
     </header>
 
@@ -65,7 +69,11 @@
             <section class="results-section" id="resultsSection" style="display: none;">
                 
                 <!-- Decision Banner -->
-                <div id="decisionBanner" class="decision-banner"></div>
+                <div id="decisionBanner" class="decision-banner">
+                    <div class="decision-icon"></div>
+                    <div class="decision-title"></div>
+                    <div class="decision-subtitle"></div>
+                </div>
 
                 <!-- Main Grid: Metrics + Chart -->
                 <div class="analysis-grid">
@@ -105,7 +113,7 @@
                 <!-- News Section -->
                 <div class="news-card">
                     <h3>📰 Latest News Headlines</h3>
-                    <div id="newsContent">
+                    <div id="newsContent" class="news-grid">
                         <div class="news-loader">
                             <span class="spinner"></span> Loading news...
                         </div>
@@ -140,9 +148,11 @@
     <!-- Footer -->
     <footer class="footer">
         <div class="container">
-            <p>💡 <strong>Disclaimer:</strong> This is a research tool for educational purposes. Always do your own analysis and consult financial advisors before making investment decisions.</p>
-            <p>📊 Data provided by Yahoo Finance | Analysis powered by AI</p>
-            <p>🌍 Supporting 70,000+ stocks from 60+ global exchanges</p>
+            <div class="footer-content">
+                <p>⚠️ <strong>Disclaimer:</strong> This platform provides data-driven analysis for educational and research purposes only.</p>
+                <p>Always conduct your own due diligence and consult licensed financial advisors before making investment decisions.</p>
+                <p style="margin-top: 1rem; opacity: 0.7;">📊 Market data provided by Yahoo Finance | 🌍 Global coverage: 70,000+ stocks across 60+ exchanges</p>
+            </div>
         </div>
     </footer>
 
