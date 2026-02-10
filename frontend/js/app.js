@@ -15,8 +15,9 @@ let currentCompanyName = null;
 // ========================================
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Load trending stocks on page load
+    // Load trending stocks and market news on page load
     loadTrendingStocks();
+    loadMarketNews();
     
     // Event Listeners
     document.getElementById('analyzeBtn').addEventListener('click', analyzeStock);
@@ -108,7 +109,7 @@ async function analyzeStock() {
         displayResults(data);
         
         // Load additional data
-        loadMetrics(data.symbol);
+        loadMetrics(data.symbol, data);
         loadChart(data.symbol, '6mo');
         loadNews(data.company_name);
         
@@ -134,18 +135,25 @@ function displayResults(data) {
     // Show results section
     document.getElementById('resultsSection').style.display = 'block';
     
-    // Decision banner
+    // Decision banner with new structure
     const banner = document.getElementById('decisionBanner');
     banner.className = 'decision-banner decision-' + data.decision.toLowerCase();
-    banner.innerHTML = `
-        <div style="font-size: 2rem; margin-bottom: 0.5rem;">
-            ${data.decision === 'BUY' ? '✅' : data.decision === 'SELL' ? '⚠️' : '⏸️'}
-        </div>
-        <div>${data.decision} - ${data.symbol}</div>
-        <div style="font-size: 1rem; font-weight: normal; margin-top: 0.5rem;">
-            ${data.company_name} | ${data.exchange}
-        </div>
-    `;
+    
+    const icon = banner.querySelector('.decision-icon');
+    const title = banner.querySelector('.decision-title');
+    const subtitle = banner.querySelector('.decision-subtitle');
+    
+    // Set icon based on decision
+    if (data.decision === 'BUY') {
+        icon.textContent = '📈';
+    } else if (data.decision === 'SELL') {
+        icon.textContent = '📉';
+    } else {
+        icon.textContent = '⏸️';
+    }
+    
+    title.textContent = `${data.decision} - ${data.symbol}`;
+    subtitle.textContent = `${data.company_name} | ${data.exchange}`;
     
     // Explanation
     document.getElementById('explanationContent').textContent = data.explanation;
@@ -155,7 +163,7 @@ function displayResults(data) {
 // LOAD METRICS
 // ========================================
 
-async function loadMetrics(symbol) {
+async function loadMetrics(symbol, analysisData) {
     const container = document.getElementById('metricsContent');
     container.innerHTML = '<div class="metric-loader"><span class="spinner"></span> Loading metrics...</div>';
     
@@ -163,10 +171,7 @@ async function loadMetrics(symbol) {
         const response = await fetch(`${API_BASE}/metrics/${symbol}`);
         const data = await response.json();
         
-        // Sentiment score (from analysis)
-        const analysisResponse = await fetch(`${API_BASE}/analyze/${symbol}`);
-        const analysisData = await analysisResponse.json();
-        
+        // Use the sentiment from the passed analysisData (already fetched with company name)
         const sentimentScore = analysisData.sentiment_score;
         const sentimentPercent = ((sentimentScore + 1) / 2) * 100; // Convert -1 to 1 → 0% to 100%
         
@@ -219,7 +224,10 @@ async function loadMetrics(symbol) {
             ` : ''}
             <div class="metric-item">
                 <span class="metric-label">Sentiment Score</span>
-                <span class="metric-value">${sentimentScore.toFixed(2)}</span>
+                <span class="metric-value">${sentimentScore.toFixed(3)}</span>
+            </div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin: 0.5rem 0;">
+                ${sentimentScore > 0.1 ? '📈 Positive sentiment' : sentimentScore < -0.1 ? '📉 Negative sentiment' : 'ℹ️ Neutral/Mixed sentiment'}
             </div>
             <div class="sentiment-bar">
                 <div class="sentiment-fill" style="width: ${sentimentPercent}%"></div>
@@ -330,7 +338,7 @@ async function loadChart(symbol, period = '6mo') {
 // ========================================
 
 async function loadNews(companyName) {
-    const container = document.getElementById('newsContent');
+    const container = document.getElementById('stockNewsContent');
     container.innerHTML = '<div class="news-loader"><span class="spinner"></span> Loading news...</div>';
     
     try {
@@ -339,19 +347,55 @@ async function loadNews(companyName) {
         
         if (data.news && data.news.length > 0) {
             container.innerHTML = data.news.map(article => {
-                const icon = article.sentiment === 'positive' ? '✅' : article.sentiment === 'negative' ? '⚠️' : 'ℹ️';
+                const icon = article.sentiment === 'positive' ? '📈' : article.sentiment === 'negative' ? '📉' : 'ℹ️';
                 return `
                     <div class="news-item">
-                        <div class="news-headline">${icon} ${article.headline}</div>
+                        <div class="news-headline">
+                            <span class="news-icon">${icon}</span>
+                            <span>${article.headline}</span>
+                        </div>
                     </div>
                 `;
             }).join('');
         } else {
-            container.innerHTML = '<p style="text-align: center; color: #6b7280;">No recent news available</p>';
+            container.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--text-muted);">No recent news available for this stock</div>';
         }
     } catch (error) {
         console.error('Error loading news:', error);
-        container.innerHTML = '<p style="color: #ef4444;">Failed to load news</p>';
+        container.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--danger-text);">Failed to load news</div>';
+    }
+}
+
+// ========================================
+// MARKET NEWS (General)
+// ========================================
+
+async function loadMarketNews() {
+    const container = document.getElementById('marketNewsContent');
+    
+    try {
+        // Get general stock market news (using "stock market" as query)
+        const response = await fetch(`${API_BASE}/news/stock%20market`);
+        const data = await response.json();
+        
+        if (data.news && data.news.length > 0) {
+            container.innerHTML = data.news.map(article => {
+                const icon = article.sentiment === 'positive' ? '📈' : article.sentiment === 'negative' ? '📉' : 'ℹ️';
+                return `
+                    <div class="news-item">
+                        <div class="news-headline">
+                            <span class="news-icon">${icon}</span>
+                            <span>${article.headline}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        } else {
+            container.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--text-muted);">No market news available</div>';
+        }
+    } catch (error) {
+        console.error('Error loading market news:', error);
+        container.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--danger-text);">Failed to load market news</div>';
     }
 }
 
@@ -417,23 +461,27 @@ function displayComparison(data) {
         <div class="comparison-grid">
             ${comparison.map(stock => {
                 const decisionClass = stock.decision.toLowerCase();
-                const decisionColor = stock.decision === 'BUY' ? '#10b981' : stock.decision === 'SELL' ? '#ef4444' : '#f59e0b';
+                const decisionEmoji = stock.decision === 'BUY' ? '📈' : stock.decision === 'SELL' ? '📉' : '⏸️';
                 return `
                     <div class="comparison-item">
                         <h4>${stock.symbol}</h4>
-                        <div style="font-size: 2rem; margin: 1rem 0; color: ${decisionColor};">
-                            ${stock.decision}
+                        <div class="comparison-decision" style="color: ${stock.decision === 'BUY' ? 'var(--success-text)' : stock.decision === 'SELL' ? 'var(--danger-text)' : 'var(--warning-text)'}">
+                            ${decisionEmoji} ${stock.decision}
                         </div>
-                        <p><strong>Price:</strong> ${stock.current_price} ${stock.currency}</p>
-                        <p><strong>6M Change:</strong> <span class="${stock.price_change_6m >= 0 ? 'text-success' : 'text-danger'}">${stock.price_change_6m >= 0 ? '+' : ''}${stock.price_change_6m}%</span></p>
-                        <p><strong>Sentiment:</strong> ${stock.sentiment_score.toFixed(2)}</p>
+                        <div style="margin: 1rem 0; padding: 1rem; background: var(--bg-secondary); border-radius: var(--radius-md);">
+                            <p style="margin-bottom: 0.5rem;"><strong>Price:</strong> ${stock.current_price} ${stock.currency}</p>
+                            <p style="margin-bottom: 0.5rem;"><strong>6M Change:</strong> <span class="${stock.price_change_6m >= 0 ? 'text-success' : 'text-danger'}">${stock.price_change_6m >= 0 ? '+' : ''}${stock.price_change_6m}%</span></p>
+                            <p><strong>Sentiment:</strong> ${stock.sentiment_score.toFixed(2)}</p>
+                        </div>
                     </div>
                 `;
             }).join('')}
         </div>
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem; border-radius: 1rem; margin-top: 1.5rem; text-align: center;">
-            <h4 style="margin-bottom: 0.5rem;">🏆 Best Performer</h4>
-            <p style="font-size: 1.2rem; font-weight: bold;">${best.symbol} (${best.change >= 0 ? '+' : ''}${best.change}%, ${best.decision})</p>
+        <div class="winner-banner">
+            <h4>🏆 Best Performer</h4>
+            <p style="font-size: 1.3rem; font-weight: 600; margin-top: 0.5rem;">
+                ${best.symbol} (${best.change >= 0 ? '+' : ''}${best.change}% | ${best.decision})
+            </p>
         </div>
     `;
 }

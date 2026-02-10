@@ -5,6 +5,10 @@ import os
 import logging
 from typing import Dict, List, Optional, Tuple
 import re
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Configure logging
 logging.basicConfig(
