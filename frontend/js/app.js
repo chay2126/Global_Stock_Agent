@@ -3,7 +3,7 @@
 // ========================================
 
 // API Base URL
-const API_BASE = 'http://localhost:8000/api';
+const API_BASE = '/api';
 
 // Global variables
 let currentChart = null;
